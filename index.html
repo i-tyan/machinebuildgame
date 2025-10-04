@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ピクセル・サバイバル・クラフト V4 - チュートリアル統合版</title>
+    <style>
+        /* ========================================================== */
+        /* CSS: スタイル定義 */
+        /* ========================================================== */
+        body {
+            font-family: 'Pixelify Sans', 'Arial', sans-serif;
+            background-color: #0d0d0d;
+            color: #d0d0d0;
+            text-align: center;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #4CAF50;
+            text-shadow: 2px 2px 3px #000;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #333;
+            padding-bottom: 10px;
+        }
+
+        /* --- チュートリアル/現在の操作エリア --- */
+        #current-selection {
+            background-color: #333;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 2px solid #ff9800; /* 目立つ色 */
+            font-size: 1.2em;
+        }
+        #selected-part-info {
+            color: #ffc107;
+            font-weight: bold;
+        }
+
+        /* --- メインコンテナ: 3分割UI --- */
+        .container {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+        .ui-panel {
+            flex: 1;
+            background-color: #1c1c1c;
+            padding: 15px;
+            border: 3px solid #333;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            min-height: 500px;
+            overflow: hidden;
+            position: relative; /* ガイド配置用 */
+        }
+        .ui-panel h2 {
+            color: #ffc107;
+            border-bottom: 2px solid #555;
+            padding-bottom: 5px;
+            margin-bottom: 15px;
+        }
+
+        /* --- クラフトグリッド --- */
+        #craft-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 90px);
+            grid-template-rows: repeat(4, 90px);
+            gap: 2px;
+            margin: 10px auto;
+            border: 4px solid #4CAF50;
+        }
+        .grid-cell {
+            width: 90px;
+            height: 90px;
+            border: 1px dashed #666;
+            background-color: #2a2a2a;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            color: #fff;
+            font-weight: bold;
+            transition: background-color 0.1s;
+        }
+        .grid-cell.occupied {
+            border: 2px solid #aaa;
+            box-shadow: inset 0 0 8px rgba(255, 255, 255, 0.2);
+            transition: transform 0.1s;
+        }
+        .grid-cell.occupied:hover { transform: scale(1.05); }
+        .grid-cell.highlight {
+            border: 3px solid yellow; /* 選択パーツの配置先を強調 */
+            background-color: #444;
+        }
+
+        /* --- インベントリ --- */
+        #inventory-list {
+            overflow-y: auto;
+            max-height: 380px;
+            padding-right: 10px;
+            text-align: left;
+        }
+        .part-item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            margin-bottom: 8px;
+            background-color: #333;
+            border-left: 4px solid #555;
+            cursor: pointer;
+            transition: background-color 0.2s, border-left 0.2s;
+        }
+        .part-item:hover { background-color: #444; }
+        .part-item.selected { border-left: 4px solid #ff4500; background-color: #5d4242; }
+
+        .part-icon {
+            width: 40px;
+            height: 40px;
+            margin-right: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            border: 1px solid #000;
+        }
+        .part-tier-1 { background-color: #5c5c5c; }
+        .part-tier-2 { background-color: #1e88e5; }
+        .part-tier-3 { background-color: #ff9800; }
+
+        .part-details { font-size: 12px; }
+        .part-details strong { color: #fff; font-size: 14px; }
+
+        /* --- STATS OUTPUT --- */
+        #stats-output { text-align: left; }
+        .stat-item { margin: 10px 0; padding-bottom: 5px; border-bottom: 1px dashed #333; }
+        .stat-item strong { color: #4CAF50; font-size: 16px; }
+        .stat-description { font-size: 0.9em; color: #aaa; margin-top: 3px; }
+
+        /* --- メッセージとボタン --- */
+        #status-message {
+            margin: 15px 0;
+            padding: 10px;
+            font-weight: bold;
+            font-size: 1.1em;
+            min-height: 40px;
+            text-align: center;
+        }
+        .msg-error { background-color: #6d1e1e; color: #ff9800; border: 2px solid #ff4500; }
+        .msg-success { background-color: #2a5a2c; color: #a5d6a7; border: 2px solid #4CAF50; }
+
+        #action-buttons { margin-top: 20px; }
+        #action-buttons button {
+            padding: 10px 20px;
+            font-size: 16px;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-right: 10px;
+            transition: background-color 0.2s, box-shadow 0.2s;
+        }
+        #check-btn { background-color: #03a9f4; }
+        #check-btn.highlight { 
+            background-color: #03c7ff;
+            box-shadow: 0 0 15px #03c7ff; /* チュートリアル強調 */
+        }
+        #check-btn:hover { background-color: #039be5; }
+        #go-btn { background-color: #ff4500; font-weight: bold; }
+        #go-btn:hover { background-color: #e63900; }
+        #go-btn:disabled { background-color: #555; cursor: not-allowed; }
+
+        /* --- クイックガイド (NEW!) --- */
+        #inventory-guide {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: #000;
+            border-top: 2px solid #ff9800;
+            padding: 10px;
+            text-align: left;
+            font-size: 0.9em;
+        }
+        #inventory-guide strong { color: #4CAF50; }
+
+    </style>
+</head>
+<body>
+
+    <h1>ピクセル・サバイバル・クラフト ⚒️</h1>
+    
+    <div id="current-selection">
+        現在の操作: <span id="selected-part-info"></span>
+    </div>
+
+    <div class="container">
+        
+        <div id="inventory" class="ui-panel">
+            <h2>INVENTORY (スクラップ品)</h2>
+            <div id="inventory-list">
+                </div>
+            <div id="inventory-guide">
+                <strong>クイックガイド:</strong><br>
+                ⬛ FRAME (フレーム) / ⚙️ ENGINE (動力) / 🛞 MOVEMENT (移動) は**必須**です！
+            </div>
+        </div>
+
+        <div id="craft-area" class="ui-panel">
+            <h2>CRAFT GRID (4x4) - 乗り物設計図</h2>
+            <div id="craft-grid">
+                </div>
+            <div id="action-buttons">
+                <button id="check-btn">性能をシミュレート</button>
+                <button id="go-btn" disabled>GO! 探索開始 ➡️</button>
+            </div>
+        </div>
+        
+        <div id="stats-output" class="ui-panel">
+            <h2>VEHICLE STATS (性能分析)</h2>
+            <div id="status-message" class="msg-error"></div>
+            </div>
+
+    </div>
+
+    <script>
+        // ==========================================================
+        // JAVASCRIPT: ロジック定義
+        // ==========================================================
+        
+        // --- 1. 定数とデータ ---
+        const GRID_SIZE = 4;
+        const GRID_CELLS = GRID_SIZE * GRID_SIZE;
+        const WEIGHT_PENALTY_FACTOR = 0.1; 
+
+        // パーツの基本データ構造
+        const PART_DATA = {
+            'frame_basic': { name: 'フレーム (T1)', type: 'body', tier: 1, weight: 10, durability: 50, power: 0, speed_bonus: 0, energy_cost: 0, icon: '⬛' , desc: '乗り物の基礎。これが無いと始まらない。'},
+            'wheel_small': { name: '小型タイヤ (T1)', type: 'movement', tier: 1, weight: 5, durability: 20, speed_bonus: 2, power: 0, energy_cost: 1, icon: '🛞', desc: '最低限の移動力。平地向き。'},
+            'engine_low': { name: 'エンジン (T1)', type: 'engine', tier: 1, weight: 8, durability: 30, power: 10, speed_bonus: 0, energy_cost: 5, icon: '⚙️', desc: '動力を供給するが、燃費は普通。'},
+            'armor_plate': { name: '装甲板 (T1)', type: 'defense', tier: 1, weight: 15, durability: 80, power: 0, speed_bonus: 0, energy_cost: 0, icon: '🛡️', desc: '重くなるが、生存率が上がる。'},
+            'booster_jet': { name: 'ターボ (T2)', type: 'engine', tier: 2, weight: 12, durability: 40, power: 30, speed_bonus: 0, energy_cost: 20, icon: '🔥', desc: '高出力だが、燃料を激しく消費する。'},
+            'wheel_offroad': { name: 'オフロード (T2)', type: 'movement', tier: 2, weight: 7, durability: 35, speed_bonus: 4, power: 0, energy_cost: 2, icon: '🚜', desc: '砂漠や岩場でも安定する。'},
+            'battery_pack': { name: 'バッテリー (T2)', type: 'utility', tier: 2, weight: 5, durability: 10, power: 0, speed_bonus: 0, energy_cost: -15, icon: '🔋', desc: '燃費を改善する補助パーツ。耐久性は低い。'}
+        };
+
+        let inventoryParts = Object.keys(PART_DATA);
+        let selectedPart = null;
+        let craftGridState = Array(GRID_CELLS).fill(null);
+
+        const craftGrid = document.getElementById('craft-grid');
+        const inventoryList = document.getElementById('inventory-list');
+        const statsOutput = document.getElementById('stats-output');
+        const statusMessage = document.getElementById('status-message');
+        const checkBtn = document.getElementById('check-btn');
+        const goBtn = document.getElementById('go-btn');
+        const selectedPartInfo = document.getElementById('selected-part-info');
+
+        // --- 2. 初期化とUI構築 ---
+
+        function initializeUI() {
+            craftGrid.innerHTML = '';
+            for (let i = 0; i < GRID_CELLS; i++) {
+                const cell = document.createElement('div');
+                cell.classList.add('grid-cell');
+                cell.dataset.index = i;
+                cell.addEventListener('click', () => placePart(i));
+                craftGrid.appendChild(cell);
+            }
+            createInventory();
+            updateSelectedPartInfo();
+            displayStats(); // 初期状態のチェックを実行
+        }
+
+        function createInventory() {
+            inventoryList.innerHTML = '';
+            for (const partId of inventoryParts) {
+                const data = PART_DATA[partId];
+                const item = document.createElement('div');
+                item.classList.add('part-item');
+                item.dataset.partId = partId;
+                
+                let tierClass = `part-tier-${data.tier}`;
+
+                item.innerHTML = `
+                    <div class="part-icon ${tierClass}">${data.icon}</div>
+                    <div class="part-details">
+                        <strong>${data.name}</strong><br>
+                        <span>燃費調整: ${data.energy_cost} / 重さ: ${data.weight}</span>
+                    </div>
+                `;
+                item.addEventListener('click', () => selectPart(partId));
+                inventoryList.appendChild(item);
+            }
+        }
+
+        // --- 3. ユーザーインタラクションとチュートリアルガイド ---
+
+        function updateSelectedPartInfo() {
+            let partsPlaced = craftGridState.some(p => p !== null);
+            checkBtn.classList.remove('highlight');
+            goBtn.disabled = true;
+
+            if (selectedPart) {
+                const data = PART_DATA[selectedPart];
+                selectedPartInfo.textContent = `選択中: ${data.name}。グリッドの空きマスをクリックして配置してください。`;
+                selectedPartInfo.classList.add('msg-success');
+                selectedPartInfo.classList.remove('msg-error');
+            } else if (partsPlaced) {
+                selectedPartInfo.textContent = '✅ 配置完了！「性能をシミュレート」ボタンを押して結果を確認してください。';
+                selectedPartInfo.classList.add('msg-success');
+                selectedPartInfo.classList.remove('msg-error');
+                checkBtn.classList.add('highlight'); // 次の行動を強調
+            } else {
+                selectedPartInfo.textContent = '👆 まずインベントリからパーツを選び、クラフトを開始してください。';
+                selectedPartInfo.classList.remove('msg-success');
+                selectedPartInfo.classList.add('msg-error');
+            }
+            
+            // グリッドセルのハイライトを更新
+            document.querySelectorAll('.grid-cell').forEach(cell => cell.classList.remove('highlight'));
+            if (selectedPart) {
+                document.querySelectorAll('.grid-cell:not(.occupied)').forEach(cell => cell.classList.add('highlight'));
+            }
+        }
+
+        function selectPart(partId) {
+            document.querySelectorAll('.part-item').forEach(item => item.classList.remove('selected'));
+            
+            if (selectedPart === partId) {
+                selectedPart = null;
+            } else {
+                selectedPart = partId;
+                document.querySelector(`.part-item[data-part-id="${partId}"]`).classList.add('selected');
+            }
+            updateSelectedPartInfo();
+        }
+
+        function placePart(index) {
+            const cell = craftGrid.querySelector(`.grid-cell[data-index="${index}"]`);
+            
+            if (selectedPart) {
+                // 配置
+                craftGridState[index] = selectedPart;
+                cell.classList.add('occupied');
+                cell.style.backgroundColor = getPartColor(selectedPart);
+                cell.innerHTML = PART_DATA[selectedPart].icon;
+                
+                selectPart(null); // 配置後、選択解除
+            } else if (craftGridState[index]) {
+                // 回収
+                const collectedPartId = craftGridState[index];
+                craftGridState[index] = null;
+                cell.classList.remove('occupied');
+                cell.style.backgroundColor = '#2a2a2a';
+                cell.innerHTML = '';
+                alert(`パーツ: ${PART_DATA[collectedPartId].name} を回収しました。グリッドをクリックして回収できます。`);
+            }
+            displayStats();
+            updateSelectedPartInfo();
+        }
+
+        function getPartColor(partId) {
+            const type = PART_DATA[partId].type;
+            switch(type) {
+                case 'body': return '#993333';
+                case 'engine': return '#336699';
+                case 'movement': return '#558855';
+                case 'defense': return '#777777';
+                case 'utility': return '#d4ac0d';
+                default: return '#555';
+            }
+        }
+
+
+        // --- 4. 性能計算ロジック (V3から変更なし) ---
+
+        function calculateVehicleStats() {
+            let totalWeight = 0, totalDurability = 0, totalPower = 0;
+            let totalEnergyCost = 0, totalSpeedBonus = 0;
+            let hasBody = false, hasMovement = false; 
+
+            for (const partId of craftGridState) {
+                if (!partId) continue;
+                const data = PART_DATA[partId];
+
+                if (data.type === 'body') hasBody = true;
+                if (data.type === 'engine') totalPower += data.power;
+                if (data.type === 'movement') hasMovement = true;
+
+                totalWeight += data.weight;
+                totalDurability += data.durability;
+                totalEnergyCost += data.energy_cost;
+                totalSpeedBonus += data.speed_bonus;
+            }
+            
+            if (!hasBody) return { error: "❌ [致命的] 車体フレーム (⬛) が必要です！", stats: null };
+            if (totalPower === 0) return { error: "❌ [動作不能] 動力源 (⚙️) が必要です！", stats: null };
+            if (!hasMovement) return { error: "❌ [移動不可] 車輪 (🛞) がありません！", stats: null };
+
+            const BASE_SPEED = 10;
+            const weightPenalty = totalWeight * WEIGHT_PENALTY_FACTOR;
+
+            const finalSpeed = (BASE_SPEED + totalPower + totalSpeedBonus) - weightPenalty;
+            
+            const FUEL_FACTOR = 2.0;
+            const finalFuelCapacity = (totalDurability * FUEL_FACTOR) - (totalEnergyCost);
+
+            return {
+                error: null,
+                stats: {
+                    weight: totalWeight,
+                    durability: totalDurability,
+                    power: totalPower,
+                    totalSpeedBonus: totalSpeedBonus,
+                    speed: Math.max(0.1, finalSpeed),
+                    energy_cost: totalEnergyCost,
+                    fuel: finalFuelCapacity,
+                    penalty: weightPenalty
+                }
+            };
+        }
+
+        // --- 5. UI更新 (フィードバック) ---
+
+        function displayStats() {
+            const result = calculateVehicleStats();
+            statsOutput.innerHTML = '<h2>VEHICLE STATS (性能分析)</h2>';
+            goBtn.disabled = true;
+
+            if (result.error) {
+                statusMessage.classList.remove('msg-success');
+                statusMessage.classList.add('msg-error');
+                statusMessage.textContent = result.error;
+                return;
+            }
+
+            const stats = result.stats;
+
+            let statsHTML = '';
+            
+            // 1. スピード (ワクワク)
+            statsHTML += `<div class="stat-item">
+                🚀 **最高速度 (km/h):** <strong>${stats.speed.toFixed(1)}</strong>
+                <div class="stat-description">(${stats.power}動力 + ${stats.totalSpeedBonus}タイヤ) - ${stats.penalty.toFixed(1)}重さペナルティ</div>
+            </div>`;
+            
+            // 2. 燃料 (緊張)
+            const fuelColor = stats.fuel < 50 ? '#ff9800' : '#4CAF50';
+            statsHTML += `<div class="stat-item">
+                ⛽ **探索可能燃料 (L):** <strong style="color:${fuelColor};">${stats.fuel.toFixed(0)}</strong>
+                <div class="stat-description">耐久度ベースの容量から、総燃費(${stats.energy_cost})を差し引いた値。</div>
+            </div>`;
+            
+            if (stats.fuel <= 0) {
+                 statusMessage.classList.add('msg-error');
+                 statusMessage.textContent = `💀 [GAME OVER] 燃料 ${stats.fuel.toFixed(0)} L。出発直後に停止します。パーツを見直してください。`;
+            } else {
+                 statusMessage.classList.remove('msg-error');
+                 statusMessage.classList.add('msg-success');
+                 statusMessage.textContent = "✅ クラフト成功！この乗り物で探索へGO!";
+                 goBtn.disabled = false;
+            }
+            
+            // 3. 耐久度 (サバイバル)
+            statsHTML += `<div class="stat-item">
+                🛡️ **最大耐久度:** <strong>${stats.durability}</strong>
+                <div class="stat-description">衝突や環境ダメージに対する防御力。</div>
+            </div>`;
+            
+            // 4. 重さ (コスト)
+            statsHTML += `<div class="stat-item">
+                ⚖️ **総重量:** ${stats.weight}
+                <div class="stat-description">重いほど速度ペナルティが大きくなります。</div>
+            </div>`;
+
+
+            statsOutput.innerHTML += statsHTML;
+        }
+
+        // --- 6. イベントリスナーと実行 ---
+        checkBtn.addEventListener('click', displayStats);
+        goBtn.addEventListener('click', () => {
+            const result = calculateVehicleStats();
+            if (!result.error && result.stats.fuel > 0) {
+                alert(`🚀 ${result.stats.speed.toFixed(1)} km/h で荒野へGO! 燃料 ${result.stats.fuel.toFixed(0)} L を頼りに生き残れ!`);
+                // TODO: ここにゲーム画面へ遷移するロジックを実装
+            } else {
+                alert("致命的なエラーがあります。性能を確認してください。");
+            }
+        });
+
+        // ページロード時の初期化
+        initializeUI();
+        
+    </script>
+</body>
+</html>
